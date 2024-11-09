@@ -123,3 +123,101 @@ function logRequest(socket, data) {
     const logData = `Request from ${socket.remoteAddress} at ${new Date()}: ${data}\n`;
     fs.appendFileSync('requests.log', logData);
 }
+
+const dataDir = path.join(__dirname, 'data');
+
+
+function handleReadRequest(socket, message) {
+    const filename = message.split(' ')[1];
+    if (!filename) {
+        socket.write('Please specify a file to read.\n');
+        return;
+    }
+    const filePath = path.join(dataDir, filename);
+    fs.readFile(filePath, 'utf8', (err, fileData) => {
+        if (err) {
+            socket.write(`Error reading file ${filename}: ${err.message}\n`);
+        } else {
+            socket.write(`File contents of ${filename}: ${fileData}\n`);
+        }
+        processNextClient();
+    });
+}
+
+
+function handleWriteRequest(socket, message) {
+    const [_, filename, ...textArray] = message.split(' ');
+    const text = textArray.join(' ');
+    if (!filename || !text) {
+        socket.write('Please specify a file and text to write.\n');
+        return;
+    }
+    const filePath = path.join(dataDir, filename);
+    fs.writeFile(filePath, text, 'utf8', (err) => {
+        if (err) {
+            socket.write(`Error writing to file ${filename}: ${err.message}\n`);
+        } else {
+            socket.write(`Successfully wrote to file ${filename}\n`);
+        }
+        processNextClient();
+    });
+}
+
+
+function handleExecuteRequest(socket, message) {
+    const command = message.split(' ')[1];
+    if (command === 'see_files') {
+        fs.readdir('./data', (err, files) => {
+            if (err) {
+                socket.write('Error listing files.\n');
+            } else {
+                socket.write(`Files: ${files.join(', ')}\n`);
+            }
+            processNextClient();
+        });
+    } else if (command === 'see_client_log') {
+        fs.readFile('connections.log', 'utf8', (err, data) => {
+            if (err) {
+                socket.write('Error reading client log.\n');
+            } else {
+                socket.write(`Client log:\n${data}\n`);
+            }
+            processNextClient();
+        });
+    } else if (command === 'delete_client_log') {
+        fs.unlink('connections.log', (err) => {
+            if (err) {
+                socket.write('Error deleting client log.\n');
+            } else {
+                socket.write('Client log deleted.\n');
+            }
+            processNextClient();
+        });
+    } else if (command === 'delete_files') {
+        fs.readdir('./data', (err, files) => {
+            if (err) {
+                socket.write('Error retrieving files for deletion.\n');
+                return;
+            }
+            files.forEach(file => {
+                fs.unlink(path.join('./data', file), (err) => {
+                    if (err) {
+                        socket.write(`Error deleting file ${file}: ${err.message}\n`);
+                    }
+                });
+            });
+            socket.write('All files deleted in ./data directory.\n');
+            processNextClient();
+        });
+    } else {
+        socket.write('Invalid execute command.\n');
+        processNextClient();
+    }
+}
+
+
+server.listen(PORT, HOST, () => {
+    console.log(`Server listening on ${HOST}:${PORT}`);
+});
+
+

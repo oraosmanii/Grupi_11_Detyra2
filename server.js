@@ -31,8 +31,70 @@ const server = net.createServer((socket) => {
       socket.end(); 
     });
     
+    socket.on('data', (data) => {
+        const message = data.toString().trim();
 
+       
+        if (message.startsWith("CLIENT_TYPE")) {
+            const clientType = message.split(' ')[1];
+            if (clientType === 'read' || clientType === 'FULL_ACCESS') {
+                socket.clientType = clientType;
+                if (clientType === 'FULL_ACCESS') {
+                    fullAccessQueue.push(socket);
+                } else {
+                    readQueue.push(socket);
+                }
+                socket.write(`Client type set to ${clientType}\n`);
+                processNextClient();  
+            } else {
+                socket.write('Invalid client type. Please specify "read" or "FULL_ACCESS".\n');
+            }
+            return;
+        }
+
+        
+        switch (true) {
+            case (socket.clientType === 'read' && message.startsWith('write')):
+                socket.write('Permission denied: Read-only clients cannot write.\n');
+                break;
+
+            case (socket.clientType === 'read' && message.startsWith('execute')):
+                socket.write('Permission denied: Read-only clients cannot execute.\n');
+                break;
+
+            case (socket.clientType === 'FULL_ACCESS' || socket.clientType === 'read'):
+                if (message.startsWith('read')) {
+                    handleReadRequest(socket, message);
+                } else if (message.startsWith('write')) {
+                    handleWriteRequest(socket, message);
+                } else if (message.startsWith('execute')) {
+                    handleExecuteRequest(socket, message);
+                } else {
+                    socket.write('Invalid command\n');
+                }
+                break;
+
+            default:
+                socket.write('Please declare your client type first using "CLIENT_TYPE read" or "CLIENT_TYPE FULL_ACCESS".\n');
+        }
+
+       
+        logRequest(socket, message);
+    });
+
+
+    socket.on('end', () => {
+        console.log(`Client disconnected: ${socket.remoteAddress}`);
+        removeFromQueue(socket);
+        activeClientCount--;
+    });
+
+ 
+    socket.on('error', (err) => {
+        console.log(`Socket error: ${err.message}`);
+    });
 });
+
 
 function processNextClient() {
     

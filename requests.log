@@ -1,0 +1,4 @@
+Request from 127.0.0.1 at Sun Nov 10 2024 12:22:10 GMT+0100 (Central European Standard Time): read serverFile1.txt
+Request from 127.0.0.1 at Sun Nov 10 2024 12:22:33 GMT+0100 (Central European Standard Time): read server
+Request from 127.0.0.1 at Sun Nov 10 2024 12:22:49 GMT+0100 (Central European Standard Time): read serverFile.txt
+Request from 127.0.0.1 at Sun Nov 10 2024 12:22:56 GMT+0100 (Central European Standard Time): execute see_files

@@ -5,37 +5,53 @@ const PORT = 8080;
 const HOST = '127.0.0.1';
 
 let client;
-let reconnectTimeout = 5000; 
-let isConnected = false; 
+let reconnectTimeout = 5000;
+let isConnected = false;
+let isServerFull = false;
 
 function connectToServer() {
     client = new net.Socket();
 
     client.connect(PORT, HOST, () => {
-        console.clear(); 
+        console.clear();
         console.log(`\n[INFO] Connected to server at ${HOST}:${PORT}`);
         isConnected = true;
-        client.write('CLIENT_TYPE FULL_ACCESS'); 
+        isServerFull = false; 
+        client.write('CLIENT_TYPE FULL_ACCESS');
         promptCommand();
     });
 
     client.on('data', (data) => {
-        console.log(`\n[SERVER] ${data.toString().trim()}`);
+        const message = data.toString().trim();
+
+        if (message === "FULL_SERVER") {
+            console.log(`\n[INFO] Server is full.`);
+            isServerFull = true; 
+            client.end();
+            return;
+        }
+
+        console.log(`\n[SERVER] ${message}`);
         if (isConnected) {
             promptCommand();
         }
     });
 
     client.on('close', () => {
-        console.log(`\n\n[INFO] Connection closed. Attempting to reconnect...`);
-        isConnected = false;
-        setTimeout(connectToServer, reconnectTimeout); 
+        if (!isServerFull) { 
+            console.log(`\n\n[INFO] Connection closed. Attempting to reconnect...`);
+            isConnected = false;
+            setTimeout(connectToServer, reconnectTimeout);
+        } else {
+            console.log(`\n[INFO] Disconnected due to full server. Not reconnecting.`);
+        }
     });
 
     client.on('error', (err) => {
         console.log(`\n[ERROR] ${err.message}`);
     });
 }
+
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout

@@ -12,29 +12,27 @@ let readQueue = [];
 let activeClientCount = 0;
 
 const server = net.createServer((socket) => {
-    
+
     if (activeClientCount >= MAX_CLIENTS) {
-        socket.write('\n\nServer full, please try later.\n');
+        socket.write('FULL_SERVER');
         socket.end();
         return;
     }
 
-    activeClientCount++; 
+    activeClientCount++;
     console.log(`\nClient connected: ${socket.remoteAddress}:${socket.remotePort}`);
     logConnection(socket);
 
-   
     socket.setTimeout(IDLE_TIMEOUT);
     socket.on('timeout', () => {
-      console.log(`\nClient ${socket.remoteAddress}:${socket.remotePort} disconnected due to inactivity.`);
-      removeFromQueue(socket); 
-      socket.end(); 
+        console.log(`\nClient ${socket.remoteAddress}:${socket.remotePort} disconnected due to inactivity.`);
+        removeFromQueue(socket);
+        socket.end();
     });
-    
+
     socket.on('data', (data) => {
         const message = data.toString().trim();
 
-       
         if (message.startsWith("CLIENT_TYPE")) {
             const clientType = message.split(' ')[1];
             if (clientType === 'read' || clientType === 'FULL_ACCESS') {
@@ -45,14 +43,13 @@ const server = net.createServer((socket) => {
                     readQueue.push(socket);
                 }
                 socket.write(`Client type set to ${clientType}\n`);
-                processNextClient();  
+                processNextClient();
             } else {
                 socket.write('Invalid client type. Please specify "read" or "FULL_ACCESS".\n');
             }
             return;
         }
 
-        
         switch (true) {
             case (socket.clientType === 'read' && message.startsWith('write')):
                 socket.write('Permission denied: Read-only clients cannot write.\n');
@@ -77,11 +74,9 @@ const server = net.createServer((socket) => {
             default:
                 socket.write('Please declare your client type first using "CLIENT_TYPE read" or "CLIENT_TYPE FULL_ACCESS".\n');
         }
-
-       
+        console.log(`\nRequest received from ${socket.remoteAddress}:${socket.remotePort} - ${message}`);
         logRequest(socket, message);
     });
-
 
     socket.on('end', () => {
         console.log(`Client disconnected: ${socket.remoteAddress}`);
@@ -89,15 +84,12 @@ const server = net.createServer((socket) => {
         activeClientCount--;
     });
 
- 
     socket.on('error', (err) => {
         console.log(`Socket error: ${err.message}`);
     });
 });
 
-
 function processNextClient() {
-    
     const nextClient = fullAccessQueue.length > 0 ? fullAccessQueue.shift() : readQueue.shift();
     if (nextClient) {
         nextClient.write('You are now being served.\n');
@@ -112,12 +104,10 @@ function removeFromQueue(socket) {
     }
 }
 
-
 function logConnection(socket) {
     const logData = `Connected: ${socket.remoteAddress} at ${new Date()}\n`;
     fs.appendFileSync('connections.log', logData);
 }
-
 
 function logRequest(socket, data) {
     const logData = `Request from ${socket.remoteAddress} at ${new Date()}: ${data}\n`;
@@ -125,7 +115,6 @@ function logRequest(socket, data) {
 }
 
 const dataDir = path.join(__dirname, 'data');
-
 
 function handleReadRequest(socket, message) {
     const filename = message.split(' ')[1];
@@ -144,7 +133,6 @@ function handleReadRequest(socket, message) {
     });
 }
 
-
 function handleWriteRequest(socket, message) {
     const [_, filename, ...textArray] = message.split(' ');
     const text = textArray.join(' ');
@@ -162,7 +150,6 @@ function handleWriteRequest(socket, message) {
         processNextClient();
     });
 }
-
 
 function handleExecuteRequest(socket, message) {
     const command = message.split(' ')[1];
@@ -215,9 +202,6 @@ function handleExecuteRequest(socket, message) {
     }
 }
 
-
 server.listen(PORT, HOST, () => {
     console.log(`Server listening on ${HOST}:${PORT}`);
 });
-
-
